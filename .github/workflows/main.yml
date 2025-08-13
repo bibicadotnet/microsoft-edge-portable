@@ -1,4 +1,4 @@
-name: Microsoft Edge Portable Auto Build
+name: Edge Portable Auto Builder
 
 on:
   schedule:
