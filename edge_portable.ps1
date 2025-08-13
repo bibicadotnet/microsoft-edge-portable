@@ -67,12 +67,12 @@ Copy-Item "$msedgeDir\$sourceFile" "$edgePath\msedge.exe" -Force
 # Install Chrome Plus
 Write-Host "Installing Chrome++..." -ForegroundColor Yellow
 Copy-Item "$chromePlusExtractDir\setdll-x64.exe" "$edgePath\setdll-x64.exe" -Force
-Copy-Item "$chromePlusExtractDir\version-x64.dll" "$edgePath\version-x64.dll" -Force
+Copy-Item "$chromePlusExtractDir\version-x64.dll" "$edgePath\version.dll" -Force
 
 # Apply Chrome Plus
 Write-Host "Applying Chrome++..." -ForegroundColor Yellow
 Set-Location $edgePath
-& ".\setdll-x64.exe" /d:version-x64.dll msedge.exe | Out-Null
+& ".\setdll-x64.exe" /d:version.dll msedge.exe | Out-Null
 Set-Location $originalPath
 
 # Cleanup temp files and installer remnants
