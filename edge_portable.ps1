@@ -7,6 +7,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
+Stop-Process -Name msedge,MicrosoftEdgeUpdate,edgeupdate,edgeupdatem,MicrosoftEdgeSetup -Force -ErrorAction SilentlyContinue
 Clear-Host
 Write-Host "Microsoft Edge Stable Portable with Chrome++ Auto Installer" -ForegroundColor Green
 
