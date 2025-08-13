@@ -49,7 +49,7 @@ jobs:
       id: check-release
       shell: powershell
       run: |
-        $releaseTag = "microsoft-edge-portable_${{ steps.edge-version.outputs.EDGE_VERSION }}_${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}"
+        $releaseTag = "edge-stable-portable-x64_${{ steps.edge-version.outputs.EDGE_VERSION }}_${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}"
         echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_OUTPUT
         
         try {
