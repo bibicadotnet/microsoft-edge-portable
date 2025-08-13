@@ -1,0 +1,211 @@
+name: Microsoft Edge Portable Auto Build
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:  # Cho phép chạy thủ công
+
+jobs:
+  check-and-build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Get latest Edge version
+      id: edge-version
+      shell: powershell
+      run: |
+        try {
+          $edgeRelease = Invoke-RestMethod "https://api.github.com/repos/bibicadotnet/edge_installer/releases/latest"
+          $edgeVersion = $edgeRelease.tag_name
+          echo "EDGE_VERSION=$edgeVersion" >> $env:GITHUB_OUTPUT
+          Write-Host "Edge version: $edgeVersion"
+        } catch {
+          Write-Error "Failed to get Edge version: $($_.Exception.Message)"
+          exit 1
+        }
+        
+    - name: Get latest Chrome++ version
+      id: chromeplus-version
+      shell: powershell
+      run: |
+        try {
+          $chromePlusRelease = Invoke-RestMethod "https://api.github.com/repos/Bush2021/chrome_plus/releases/latest"
+          $chromePlusVersion = $chromePlusRelease.tag_name
+          echo "CHROMEPLUS_VERSION=$chromePlusVersion" >> $env:GITHUB_OUTPUT
+          Write-Host "Chrome++ version: $chromePlusVersion"
+        } catch {
+          Write-Error "Failed to get Chrome++ version: $($_.Exception.Message)"
+          exit 1
+        }
+        
+    - name: Check if release exists
+      id: check-release
+      shell: powershell
+      run: |
+        $releaseTag = "microsoft-edge-portable_${{ steps.edge-version.outputs.EDGE_VERSION }}_${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}"
+        echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_OUTPUT
+        
+        try {
+          $headers = @{
+            'Authorization' = 'token ${{ secrets.GITHUB_TOKEN }}'
+            'Accept' = 'application/vnd.github.v3+json'
+          }
+          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/$releaseTag" -Headers $headers -ErrorAction Stop
+          echo "RELEASE_EXISTS=true" >> $env:GITHUB_OUTPUT
+          Write-Host "Release $releaseTag already exists"
+        } catch {
+          if ($_.Exception.Response.StatusCode -eq 404) {
+            echo "RELEASE_EXISTS=false" >> $env:GITHUB_OUTPUT
+            Write-Host "Release $releaseTag does not exist, will create new one"
+          } else {
+            Write-Error "Error checking release: $($_.Exception.Message)"
+            exit 1
+          }
+        }
+        
+    - name: Build Edge Portable
+      if: steps.check-release.outputs.RELEASE_EXISTS == 'false'
+      shell: powershell
+      run: |
+        # Stop any Edge processes
+        Stop-Process -Name msedge,MicrosoftEdgeUpdate,edgeupdate,edgeupdatem,MicrosoftEdgeSetup -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "Building Microsoft Edge Portable with Chrome++" -ForegroundColor Green
+        
+        $portablePath = "$env:GITHUB_WORKSPACE\Edge_Portable"
+        $edgePath = "$portablePath\Edge"
+        $tempDir = "$env:TEMP\EdgeInstaller"
+        
+        # Get release info
+        $edgeRelease = Invoke-RestMethod "https://api.github.com/repos/bibicadotnet/edge_installer/releases/latest"
+        $edgeDownloadUrl = $edgeRelease.assets | Where-Object { $_.name -match "MicrosoftEdge_X64_.+\.exe" } | Select-Object -First 1 -ExpandProperty browser_download_url
+        $edgeFileName = $edgeRelease.assets | Where-Object { $_.name -match "MicrosoftEdge_X64_.+\.exe" } | Select-Object -First 1 -ExpandProperty name
+        
+        $chromePlusRelease = Invoke-RestMethod "https://api.github.com/repos/Bush2021/chrome_plus/releases/latest"
+        $chromePlusDownloadUrl = $chromePlusRelease.assets | Where-Object { $_.name -eq "setdll.7z" } | Select-Object -First 1 -ExpandProperty browser_download_url
+        
+        # Prepare directories
+        if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+        if (-not (Test-Path $portablePath)) { New-Item -ItemType Directory -Path $portablePath -Force | Out-Null }
+        if (Test-Path $edgePath) { Remove-Item $edgePath -Recurse -Force }
+        New-Item -ItemType Directory -Path $edgePath -Force | Out-Null
+        
+        # Download files
+        Write-Host "Downloading Edge..." -ForegroundColor Yellow
+        (New-Object System.Net.WebClient).DownloadFile($edgeDownloadUrl, "$tempDir\$edgeFileName")
+        (New-Object System.Net.WebClient).DownloadFile("https://www.7-zip.org/a/7zr.exe", "$tempDir\7zr.exe")
+        
+        Write-Host "Downloading Chrome++..." -ForegroundColor Yellow
+        (New-Object System.Net.WebClient).DownloadFile($chromePlusDownloadUrl, "$tempDir\setdll.7z")
+        (New-Object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/bibicadotnet/microsoft-edge-portable/refs/heads/main/chrome%2B%2B.ini", "$edgePath\chrome++.ini")
+        
+        # Extract Edge
+        Write-Host "Extracting Edge..." -ForegroundColor Yellow
+        $sevenZPath = "$tempDir\7zr.exe"
+        $extractDir = "$tempDir\extract"
+        & $sevenZPath x "$tempDir\$edgeFileName" "-o$extractDir" -y | Out-Null
+        
+        $msedge7z = Get-ChildItem -Path $extractDir -Name "MSEDGE.7z" -Recurse | Select-Object -First 1
+        $msedgeDir = "$tempDir\msedge"
+        & $sevenZPath x "$extractDir\$msedge7z" "-o$msedgeDir" -y | Out-Null
+        
+        # Extract Chrome Plus
+        Write-Host "Extracting Chrome++..." -ForegroundColor Yellow
+        $chromePlusExtractDir = "$tempDir\chromeplus"
+        & $sevenZPath x "$tempDir\setdll.7z" "-o$chromePlusExtractDir" -y | Out-Null
+        
+        # Install Edge
+        Write-Host "Installing Edge..." -ForegroundColor Yellow
+        $versionFolder = Get-ChildItem -Path $msedgeDir -Directory -Recurse | Where-Object { $_.Name -match "^\d+\.\d+\.\d+\.\d+$" } | Select-Object -First 1
+        Copy-Item $versionFolder.FullName "$edgePath\$($versionFolder.Name)" -Recurse -Force
+        
+        $sourceFile = Get-ChildItem -Path $msedgeDir -Name "msedge.exe" -Recurse | Select-Object -First 1
+        Copy-Item "$msedgeDir\$sourceFile" "$edgePath\msedge.exe" -Force
+        
+        # Install Chrome Plus
+        Write-Host "Installing Chrome++..." -ForegroundColor Yellow
+        Copy-Item "$chromePlusExtractDir\setdll-x64.exe" "$edgePath\setdll-x64.exe" -Force
+        Copy-Item "$chromePlusExtractDir\version-x64.dll" "$edgePath\version.dll" -Force
+        
+        # Apply Chrome Plus
+        Write-Host "Applying Chrome++..." -ForegroundColor Yellow
+        Push-Location $edgePath
+        & ".\setdll-x64.exe" /d:version.dll msedge.exe | Out-Null
+        Pop-Location
+        
+        # Cleanup temp files and installer remnants
+        Remove-Item $tempDir -Recurse -Force
+        Remove-Item "$edgePath\setdll-x64.exe", "$edgePath\msedge.exe~" -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "Build completed!" -ForegroundColor Green
+        
+    - name: Create ZIP archive
+      if: steps.check-release.outputs.RELEASE_EXISTS == 'false'
+      shell: powershell
+      run: |
+        $zipPath = "$env:GITHUB_WORKSPACE\microsoft-edge-portable_${{ steps.edge-version.outputs.EDGE_VERSION }}_${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}.zip"
+        Compress-Archive -Path "$env:GITHUB_WORKSPACE\Edge_Portable\*" -DestinationPath $zipPath -CompressionLevel Optimal
+        Write-Host "Created archive: $zipPath"
+        
+        # Set output for next step
+        echo "ARCHIVE_PATH=$zipPath" >> $env:GITHUB_OUTPUT
+      id: create-archive
+        
+    - name: Create Release
+      if: steps.check-release.outputs.RELEASE_EXISTS == 'false'
+      uses: actions/create-release@v1
+      id: create-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.check-release.outputs.RELEASE_TAG }}
+        release_name: "Microsoft Edge Portable ${{ steps.edge-version.outputs.EDGE_VERSION }} with Chrome++ ${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}"
+        body: |
+          🚀 **Microsoft Edge Portable with Chrome++ Auto Build**
+          
+          **Edge Version:** `${{ steps.edge-version.outputs.EDGE_VERSION }}`
+          **Chrome++ Version:** `${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}`
+          
+          ## What's Included
+          - Microsoft Edge Stable Portable
+          - Chrome++ enhancements
+          - Pre-configured settings
+          
+          ## Installation
+          1. Download the ZIP file
+          2. Extract to your desired location
+          3. Run `Edge\msedge.exe`
+          
+          ## Features
+          - Fully portable - no installation required
+          - Enhanced with Chrome++ features
+          - Auto-configured for optimal experience
+          
+          ---
+          *This release was automatically generated by GitHub Actions*
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      if: steps.check-release.outputs.RELEASE_EXISTS == 'false'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ${{ steps.create-archive.outputs.ARCHIVE_PATH }}
+        asset_name: microsoft-edge-portable_${{ steps.edge-version.outputs.EDGE_VERSION }}_${{ steps.chromeplus-version.outputs.CHROMEPLUS_VERSION }}.zip
+        asset_content_type: application/zip
+        
+    - name: Summary
+      shell: powershell
+      run: |
+        if ("${{ steps.check-release.outputs.RELEASE_EXISTS }}" -eq "true") {
+          Write-Host "Release ${{ steps.check-release.outputs.RELEASE_TAG }} already exists - skipped" -ForegroundColor Yellow
+        } else {
+          Write-Host "Successfully created release ${{ steps.check-release.outputs.RELEASE_TAG }}" -ForegroundColor Green
+        }
