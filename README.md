@@ -16,5 +16,3 @@ irm https://go.bibica.net/edge_portable | iex
 ```
 
 **Or download the pre-built [release](https://github.com/bibicadotnet/microsoft-edge-portable/releases/latest)**, extract, and start using immediately.
-
----
