@@ -1,18 +1,20 @@
 ## Microsoft Edge Portable with Chrome++ Auto Installer
 
-This PowerShell script automatically downloads and installs **Microsoft Edge Stable Portable** with **Chrome++**, creating a portable build at `C:\Edge_Portable`.
-Key features:
+No installation or setup required. Keeps all history, cookies, extensions, and settings even when moved to another device.
 
-* Automatically checks and requests **Administrator** privileges.
-* **Downloads the latest Edge Stable build from [edge\_installer](https://github.com/bibicadotnet/edge_installer)**.
-* Fetches and integrates **Chrome++** for enhanced features.
-* Fully automated extraction, installation, and configuration.
-* Cleans up temporary files and installers after completion.
+**Script features:**
 
-**Run a single command** to get a ready-to-use portable Edge without modifying your system.
+* Downloads the latest Edge Stable from [edge\_installer](https://github.com/bibicadotnet/edge_installer)
+* Integrates Chrome++ for extra features
+* Extracts to `C:\Edge_Portable` (default location)
+* Cleans up temporary files after completion
 
-```
+**Run directly in PowerShell:**
+
+```powershell
 irm https://go.bibica.net/edge_portable | iex
 ```
 
-Too lazy? Just grab the pre-built [release](https://github.com/bibicadotnet/microsoft-edge-portable/releases/), extract it, and you’re ready to go.
+**Or download the pre-built [release](https://github.com/bibicadotnet/microsoft-edge-portable/releases/latest)**, extract, and start using immediately.
+
+---
