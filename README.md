@@ -4,7 +4,7 @@ No installation or setup required. Keeps all history, cookies, extensions, and s
 
 **Script features:**
 
-* Downloads the latest Edge Stable from [edge\_installer](https://github.com/bibicadotnet/edge_installer)
+* Downloads the latest Edge Stable x64 from [edge\_installer](https://github.com/bibicadotnet/edge_installer)
 * Integrates Chrome++ for extra features
 * Extracts to `C:\Edge_Portable` (default location)
 * Cleans up temporary files after completion
