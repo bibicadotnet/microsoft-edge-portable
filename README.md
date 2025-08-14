@@ -1,4 +1,4 @@
-## Microsoft Edge Portable with Chrome++ Auto Installer
+## Microsoft Edge Stable Portable with Chrome++ Auto Installer
 
 No installation or setup required. Keeps all history, cookies, extensions, and settings even when moved to another device.
 
