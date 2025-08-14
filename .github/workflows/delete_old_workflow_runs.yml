@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 20 * * *'
-
+permissions:
+  actions: write
 jobs:
   del_runs:
     runs-on: ubuntu-latest
