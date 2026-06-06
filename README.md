@@ -1,5 +1,7 @@
 ## Microsoft Edge Stable Portable with Chrome++ Auto Installer
 
+- Please try version v2 [here](https://github.com/bibicadotnet/edge-portable-chrome-next-mini/)
+
 No installation or setup required. Keeps all history, cookies, extensions, and settings even when moved to another device.
 
 **Script features:**
